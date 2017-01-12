@@ -1,0 +1,223 @@
+﻿* Encoding: UTF-8.
+
+* 
+DATASET ACTIVATE DataSet1
+MIXED group BY song_track lrc_type song_type Subject
+  /CRITERIA=CIN(95) MXITER(100) MXSTEP(10) SCORING(1) SINGULAR(0.000000000001) HCONVERGE(0, 
+    ABSOLUTE) LCONVERGE(0, ABSOLUTE) PCONVERGE(0.000001, ABSOLUTE)
+  /FIXED=song_track lrc_type song_type lrc_type*song_type | SSTYPE(3)
+  /METHOD=ML
+  /PRINT=DESCRIPTIVES  TESTCOV
+  /RANDOM=Subject | COVTYPE(VC)
+  /SAVE=PRED RESID
+  /EMMEANS=TABLES(OVERALL)
+  /EMMEANS=TABLES(song_track) COMPARE ADJ(SIDAK)
+  /EMMEANS=TABLES(lrc_type) COMPARE ADJ(SIDAK)
+  /EMMEANS=TABLES(song_type) COMPARE ADJ(SIDAK)
+  /EMMEANS=TABLES(lrc_type*song_type) COMPARE(lrc_type) ADJ(SIDAK).
+.
+* *************************************************************************************************************************************
+************************************************************ on Dataset 2 **********************************************************.
+
+COMPUTE att= (spump + Shap + Sdance + Sawake + Sfunfr) - (Ssad +Sfocus + Sintell).
+EXECUTE.
+
+* Mixed model on Full model.
+DATASET ACTIVATE DataSet1.
+MIXED att BY SongTrack SongType Subject
+  /CRITERIA=CIN(95) MXITER(100) MXSTEP(10) SCORING(1) SINGULAR(0.000000000001) HCONVERGE(0, 
+    ABSOLUTE) LCONVERGE(0, ABSOLUTE) PCONVERGE(0.000001, ABSOLUTE)
+  /FIXED=SongTrack SongType | SSTYPE(3)
+  /METHOD=ML
+  /PRINT=DESCRIPTIVES  TESTCOV
+  /RANDOM=Subject | COVTYPE(VC)
+  /SAVE=PRED RESID
+  /EMMEANS=TABLES(OVERALL)
+  /EMMEANS=TABLES(SongTrack) COMPARE ADJ(SIDAK)
+  /EMMEANS=TABLES(SongType) COMPARE ADJ(SIDAK).
+
+
+*Mixed model on nested model.
+DATASET ACTIVATE DataSet1.
+MIXED att BY SongTrack Subject
+  /CRITERIA=CIN(95) MXITER(100) MXSTEP(10) SCORING(1) SINGULAR(0.000000000001) HCONVERGE(0, 
+    ABSOLUTE) LCONVERGE(0, ABSOLUTE) PCONVERGE(0.000001, ABSOLUTE)
+ /FIXED=SongTrack | SSTYPE(3)
+  /METHOD=ML
+  /PRINT=CORB COVB DESCRIPTIVES G  LMATRIX R SOLUTION TESTCOV
+  /RANDOM=Subject | COVTYPE(VC)
+ /SAVE=PRED RESID
+  /EMMEANS=TABLES(OVERALL)
+  /EMMEANS=TABLES(SongTrack) COMPARE ADJ(SIDAK).
+
+
+* Mixed model on nested model.
+DATASET ACTIVATE DataSet1.
+MIXED att BY Subject
+  /CRITERIA=CIN(95) MXITER(100) MXSTEP(10) SCORING(1) SINGULAR(0.000000000001) HCONVERGE(0, 
+    ABSOLUTE) LCONVERGE(0, ABSOLUTE) PCONVERGE(0.000001, ABSOLUTE)
+  /METHOD=ML
+  /PRINT=CORB COVB DESCRIPTIVES G  LMATRIX R SOLUTION TESTCOV
+  /RANDOM=Subject | COVTYPE(VC)
+ /SAVE=PRED RESID.
+
+
+DESCRIPTIVES VARIABLES=ResFulModel ResNoSongType ResInterCM
+  /STATISTICS=MEAN STDDEV VARIANCE.
+
+
+
+
+* *************************************************************************************************************************************
+************************************************************ on Dataset 1a **********************************************************.
+
+* Full model.
+
+COMPUTE att= (spump + Shap + Sdance + Sawake + Sfunfr) - (Ssad +Sfocus + Sintell).
+EXECUTE.
+
+DATASET ACTIVATE DataSet1.
+MIXED att BY song_track lrc_type song_type Subject
+  /CRITERIA=CIN(95) MXITER(100) MXSTEP(10) SCORING(1) SINGULAR(0.000000000001) HCONVERGE(0, 
+    ABSOLUTE) LCONVERGE(0, ABSOLUTE) PCONVERGE(0.000001, ABSOLUTE)
+  /FIXED=song_track lrc_type song_type lrc_type*song_type | SSTYPE(3)
+  /METHOD=ML
+  /PRINT=DESCRIPTIVES  TESTCOV
+  /RANDOM=Subject | COVTYPE(VC)
+  /SAVE=PRED RESID
+  /EMMEANS=TABLES(OVERALL)
+  /EMMEANS=TABLES(song_track) COMPARE ADJ(SIDAK)
+  /EMMEANS=TABLES(lrc_type) COMPARE ADJ(SIDAK)
+  /EMMEANS=TABLES(song_type) COMPARE ADJ(SIDAK)
+  /EMMEANS=TABLES(lrc_type*song_type) COMPARE(lrc_type) ADJ(SIDAK).
+
+
+* Nested model 1.
+
+DATASET ACTIVATE DataSet1.
+MIXED att BY song_track song_type Subject
+  /CRITERIA=CIN(95) MXITER(100) MXSTEP(10) SCORING(1) SINGULAR(0.000000000001) HCONVERGE(0, 
+    ABSOLUTE) LCONVERGE(0, ABSOLUTE) PCONVERGE(0.000001, ABSOLUTE)
+  /FIXED=song_track song_type | SSTYPE(3)
+  /METHOD=ML
+  /PRINT=DESCRIPTIVES  TESTCOV
+  /RANDOM=Subject | COVTYPE(VC)
+  /SAVE=PRED RESID
+  /EMMEANS=TABLES(OVERALL)
+  /EMMEANS=TABLES(song_track) COMPARE ADJ(SIDAK)
+  /EMMEANS=TABLES(song_type) COMPARE ADJ(SIDAK).
+
+
+* Nested model 2.
+
+DATASET ACTIVATE DataSet1.
+MIXED att BY song_track Subject
+  /CRITERIA=CIN(95) MXITER(100) MXSTEP(10) SCORING(1) SINGULAR(0.000000000001) HCONVERGE(0, 
+    ABSOLUTE) LCONVERGE(0, ABSOLUTE) PCONVERGE(0.000001, ABSOLUTE)
+  /FIXED=song_track | SSTYPE(3)
+  /METHOD=ML
+  /PRINT=DESCRIPTIVES  TESTCOV
+  /RANDOM=Subject | COVTYPE(VC)
+  /SAVE=PRED RESID
+  /EMMEANS=TABLES(OVERALL)
+  /EMMEANS=TABLES(song_track) COMPARE ADJ(SIDAK).
+
+
+
+* Nested model 3.
+
+DATASET ACTIVATE DataSet1.
+MIXED att BY  Subject
+  /CRITERIA=CIN(95) MXITER(100) MXSTEP(10) SCORING(1) SINGULAR(0.000000000001) HCONVERGE(0, 
+    ABSOLUTE) LCONVERGE(0, ABSOLUTE) PCONVERGE(0.000001, ABSOLUTE)
+  /METHOD=ML
+  /PRINT=DESCRIPTIVES  TESTCOV
+  /RANDOM=Subject | COVTYPE(VC)
+  /SAVE=PRED RESID
+  /EMMEANS=TABLES(OVERALL).
+
+
+
+
+DATASET ACTIVATE DataSet3.
+DESCRIPTIVES VARIABLES=FullModelRes ResNoLyr ResNoLyrNoType ResNoModel
+  /STATISTICS=MEAN STDDEV VARIANCE.
+
+
+* *************************************************************************************************************************************
+************************************************************ on Dataset 1b **********************************************************.
+COMPUTE att= (Opump + Ohap + Odance + Oawake + Ofunfr) - (Osad +Ofocus + Ointell).
+EXECUTE.
+
+* Full model.
+
+DATASET ACTIVATE DataSet1.
+MIXED att BY song_track lrc_type song_type Subject
+  /CRITERIA=CIN(95) MXITER(100) MXSTEP(10) SCORING(1) SINGULAR(0.000000000001) HCONVERGE(0, 
+    ABSOLUTE) LCONVERGE(0, ABSOLUTE) PCONVERGE(0.000001, ABSOLUTE)
+  /FIXED=song_track lrc_type song_type lrc_type*song_type | SSTYPE(3)
+  /METHOD=ML
+  /PRINT=DESCRIPTIVES  TESTCOV
+  /RANDOM=Subject | COVTYPE(VC)
+  /SAVE=PRED RESID
+  /EMMEANS=TABLES(OVERALL)
+  /EMMEANS=TABLES(song_track) COMPARE ADJ(SIDAK)
+  /EMMEANS=TABLES(lrc_type) COMPARE ADJ(SIDAK)
+  /EMMEANS=TABLES(song_type) COMPARE ADJ(SIDAK)
+  /EMMEANS=TABLES(lrc_type*song_type) COMPARE(lrc_type) ADJ(SIDAK).
+
+
+* Nested model 1.
+
+DATASET ACTIVATE DataSet1.
+MIXED att BY song_track song_type Subject
+  /CRITERIA=CIN(95) MXITER(100) MXSTEP(10) SCORING(1) SINGULAR(0.000000000001) HCONVERGE(0, 
+    ABSOLUTE) LCONVERGE(0, ABSOLUTE) PCONVERGE(0.000001, ABSOLUTE)
+  /FIXED=song_track song_type | SSTYPE(3)
+  /METHOD=ML
+  /PRINT=DESCRIPTIVES  TESTCOV
+  /RANDOM=Subject | COVTYPE(VC)
+  /SAVE=PRED RESID
+  /EMMEANS=TABLES(OVERALL)
+  /EMMEANS=TABLES(song_track) COMPARE ADJ(SIDAK)
+  /EMMEANS=TABLES(song_type) COMPARE ADJ(SIDAK).
+
+
+* Nested model 2.
+
+DATASET ACTIVATE DataSet1.
+MIXED att BY song_track Subject
+  /CRITERIA=CIN(95) MXITER(100) MXSTEP(10) SCORING(1) SINGULAR(0.000000000001) HCONVERGE(0, 
+    ABSOLUTE) LCONVERGE(0, ABSOLUTE) PCONVERGE(0.000001, ABSOLUTE)
+  /FIXED=song_track | SSTYPE(3)
+  /METHOD=ML
+  /PRINT=DESCRIPTIVES  TESTCOV
+  /RANDOM=Subject | COVTYPE(VC)
+  /SAVE=PRED RESID
+  /EMMEANS=TABLES(OVERALL)
+  /EMMEANS=TABLES(song_track) COMPARE ADJ(SIDAK).
+
+
+
+* Nested model 3.
+
+DATASET ACTIVATE DataSet1.
+MIXED att BY  Subject
+  /CRITERIA=CIN(95) MXITER(100) MXSTEP(10) SCORING(1) SINGULAR(0.000000000001) HCONVERGE(0, 
+    ABSOLUTE) LCONVERGE(0, ABSOLUTE) PCONVERGE(0.000001, ABSOLUTE)
+  /METHOD=ML
+  /PRINT=DESCRIPTIVES  TESTCOV
+  /RANDOM=Subject | COVTYPE(VC)
+  /SAVE=PRED RESID
+  /EMMEANS=TABLES(OVERALL).
+
+
+
+
+DATASET ACTIVATE DataSet3.
+DESCRIPTIVES VARIABLES=FullModelRes ResNoLyr ResNoLyrNoType ResNoModel
+  /STATISTICS=MEAN STDDEV VARIANCE.
+
+
+
+
