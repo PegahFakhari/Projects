@@ -1,0 +1,331 @@
+---
+title: "HomeWork 7"
+author: "Pegah Fakhari"
+date: "Wednesday, October 12, 2016"
+output: pdf_document
+---
+
+```{r,echo=F,include=F}
+library(nlme,quietly = F,warn.conflicts = F)
+library(lattice,quietly = F,warn.conflicts = F)
+```
+
+Read the data
+```{r}
+ratpup = read.csv("RatPup Data.csv",header = T)
+attach(ratpup)
+```
+
+Recode the sex factor into 0 and 1:
+```{r}
+ratpup$sex1[sex == "Female"] <- 1
+ratpup$sex1[sex == "Male"] <- 0
+```
+
+```{r}
+table(treatment)
+table(sex)
+plot(litter, weight)
+plot(treatment, weight)
+plot(sex, weight)
+bwplot(weight~litter | sex + treatment)
+```
+
+Sex, sex1 and treatment are all factors. Our response is weight. Similar to linear regression, treatment, sex1, litsize and the interaction between sex1 and treatment is our fixed predictors. The source of correlation comes from ```litter``` and thus we set its intercept to be modeled as random effec. Also this model has interaction 
+
+```{r}
+# Treatment's reference is control. Sex's reference is male
+model1 <- lme(weight ~ treatment + sex1 + litsize +
+treatment:sex1, random = ~ 1 | litter,
+data = ratpup, method = "REML")
+summary(model1)
+# type I anove (the order matters)
+anova(model1)
+```
+The interaction is not significant.
+
+```{r}
+random.effects(model1)
+```
+### A model without interaction
+
+```{r}
+# Treatment's reference is control. Sex's reference is male
+model2 <- lme(weight ~ treatment + sex1 + litsize, random = ~ 1 | litter,
+data = ratpup, method = "REML")
+summary(model2)
+# type I anova (the order matters)
+anova(model2)
+random.effects(model2)
+```
+
+### Check whether adding a random effect would improve our result (is it beneficial to add random effect to our simple linear model?)
+
+anova will compare the likelihood ratio of these to models and compare it with chi-squared. Since model 3 is nested in model 1, if the p-value is less than 0.05, then we say adding the random effect is actullay worth it! (improves our model). Our null hypothesis is that ```litter``` has a zero variance among different groups and no random effect is needed.
+
+```{r}
+model3 <- gls(weight ~ treatment + sex1 + litsize +
+treatment:sex1, data = ratpup)
+anova(model1, model3) 
+```
+
+The p-value should be divided by two (there's a section in the book, 3.5.1, that explains why we need to consider two chi square distribution and why we should divide p-value) but for now, because p-value is less than $0.0001$ (pretty strong) we keep the random effect model.
+
+###Assume heterogeneous residual variance structure: Observations at different ```Treatment``` groups have different residual variance 
+
+The estimated residual variance for each level of the ```treatment``` is computed by taking the square of the relative standard deviations. For level ```control``` the estimated parameter is 1 while the other levels are less than 1. It means that the residual standard deviation in ```control``` was the largest (then ```high``` level and last ```low``` level) .
+
+```{r}
+model4 <- lme(weight ~ treatment + sex1 + litsize
++ treatment:sex1, random = ~1 | litter, ratpup, method = "REML",
+weights = varIdent(form = ~1 | treatment))
+summary(model4)
+```
+
+Comparing their LR to see whether this assumption could improve our model and since the p-value is less than $0.05$, it is improving. The null hypothesis is each level in treatment has similar residual variance.
+
+```{r}
+anova(model1, model4) 
+```
+
+recode our treatment
+```{r}
+ratpup$trt[treatment == "Control"] <- 1
+ratpup$trt[treatment == "Low" | treatment == "High"] <- 2
+```
+
+###Check heterogeneous residual variance on recoded treatment
+
+In this model I set the grouped heterogeneous residual variance for the new recoded variable, ```trt``` (based on treatment). 
+
+```{r}
+model5 <- lme(weight ~ treatment + sex1 + litsize + treatment:sex1,
+random = ~ 1 | litter, ratpup, method = "REML",
+weights = varIdent(form = ~1 | trt))
+summary(model5)
+anova(model4, model5)
+```
+
+the p-value is not significant, so we choose the nested model (model 5) but now we need to compare this model with model 3. From this comparison, the p-value is less than $0.05$. Thus the best model so far is the model with heterogeneous error variances (grouped) on ```trt```. Next I remove the non-significant parts of the model, e.g. the interaction.
+
+```{r}
+anova(model3, model5)
+anova(model5)
+summary(model5)
+```
+
+Now I check whether ```treatment``` has significant effect or not. First with ML estimation and then to get the unbiased estimation we use REML. 
+
+```{r}
+model5ML <- lme(weight ~ treatment + sex1 + litsize, random = ~1 | litter, ratpup, method = "ML", weights = varIdent(form = ~1 | trt))
+
+# remove the treatment from the model:
+Tempmodel <- lme(weight ~ sex1 + litsize, random = ~1 | litter, ratpup, method = "ML", weights = varIdent(form = ~1 | trt))
+
+anova(model5ML, Tempmodel)
+```
+We can do the same analysis for ```sex1``` and ```LITSIZE``` (we should keep both)
+
+```{r}
+# remove the sex1 from the model:
+Tempmodel <- lme(weight ~ treatment + litsize, random = ~1 | litter, ratpup, method = "ML", weights = varIdent(form = ~1 | trt))
+
+anova(model5ML, Tempmodel)
+```
+```{r}
+# remove the litsize from the model:
+Tempmodel <- lme(weight ~ treatment + sex1, random = ~1 | litter, ratpup, method = "ML", weights = varIdent(form = ~1 | trt))
+
+anova(model5ML, Tempmodel)
+```
+Now use REML to calculate the unbiased estimations of the final model which contains the ```treatment```, ```sex1``` and ```litsize``` as the main regressors with random effects on ```litter```and with heterogeneous residual variance on ```trt```. This  model is equivalent to the model 3.3 (Final Model) in the book and in the SAS code.
+
+
+```{r}
+model5REML <- lme(weight ~ treatment + sex1 + litsize, random = ~1 | litter, ratpup, method = "REML", weights = varIdent(form = ~1 | trt))
+summary(model5REML)
+anova(model5REML)
+```
+###Analysis with the lmer() Function in lme4 package
+
+```{r}
+library(lme4,quietly = F,warn.conflicts = F)
+library(lmerTest,quietly = F,warn.conflicts = F)
+# with interaction
+model1_lmer <- lmer(weight ~ treatment + sex1 + litsize +
+treatment:sex1 + (1 | litter),
+ratpup, REML = T)
+# interaction was not significant
+modelF_lmer <- lmer(weight ~ treatment + sex1 + litsize + (1 | litter), ratpup, REML = T)
+
+summary(modelF_lmer)
+```
+similar to lme() function, ```control```is the reference (because alphabetically it is the lowest among all). I loaded ```lmerTest``` library to have the p-values of each estimation. To test the likelihood ratio using rand function which tests the model without random effect on ```litter```:
+
+```{r}
+# The final model doesn't have the interaction
+rand(modelF_lmer)
+```
+the p-value was less than $0.05$ and thus we find that adding the random effect on ```litter``` improves our model (consistent with our previous analysis using lme function).
+
+### HLMdiag and diagnositics
+
+```{r}
+library(HLMdiag,quietly = F,warn.conflicts = F)
+resid <- HLMresid(modelF_lmer, level = 1, type = "LS", standardize = TRUE)
+head(resid)
+```
+```{r}
+library(ggplot2, quietly = F,warn.conflicts = F)
+
+qplot(x = sex1, y = LS.resid, data = resid, geom = c("point", "smooth")) + ylab("LS level-1 residuals")
+
+qplot(x = litsize, y = LS.resid, data = resid, geom = c("point", "smooth")) + ylab("LS level-1 residuals")
+```
+Standardized level-1 residuals are calculated by fitting LS regression to each group (if we assume that in the mixed model we have a hierarchical stracture; then this residual refers to the lowest level of the this structure) while level-2 refers to residual from random effects in the model:
+
+```{r}
+#demonstrate normal quantile plot of the standardized level-1 residuals
+ssresid <- na.omit(resid$std.resid)
+ggplot_qqnorm(x = ssresid, line = "rlm")
+```
+
+```{r}
+#level 2 residual
+resid2 <- HLMresid(object = modelF_lmer, level = "litter")
+head(resid2)
+```
+using the ```internal``` cutoff for cook's distance no influential points is found (beyond the cutoff). 
+
+```{r}
+cooksd <- cooks.distance(modelF_lmer, group = "litter")
+mdffits <- mdffits(modelF_lmer, group = "litter")
+dotplot_diag(x = cooksd, cutoff = "internal", name = "cooks.distance") + ylab("Cooks distance") + xlab("school")
+
+ dotplot_diag(x = cooksd, cutoff = "internal", name = "cooks.distance", modify = "dotplot") + ylab("Cooks distance") + xlab("school")
+
+# the covariance ratio should be close to 1 and the covtrace close to 0 if point i is not influential.
+(covratio_model <- covratio(modelF_lmer, group = "litter"))
+(covtrace_model <- covtrace(modelF_lmer, group = "litter"))
+```
+But just for practice let say the $9$th point is influential (the farthest from the data). Below I can find the details of this data point in my analysis:
+
+```{r}
+beta_cdd9 <- as.numeric(attr(cooksd, "beta_cdd")[[9]])
+names(beta_cdd9) <- names(fixef(modelF_lmer))
+beta_cdd9
+```
+
+Calculate the cook's distance in residual Level1:
+The result shows that without considering the random effect, the fit is really poor (the Cook's distance on the residuals are showing that). But augmenting the model with random effect on ```litter```, the fit is way better and no trace of influential points is seen (no data point is beyond the red line threshold).
+
+```{r}
+#cooksd1 <- cooks.distance(modelF_lmer, group = NULL)
+#mdffits1 <- mdffits(modelF_lmer, group = NULL)
+#dotplot_diag(x = cooksd1, cutoff = "internal", name = "cooks.distance") + ylab("Cooks distance") + xlab("school")
+
+#dotplot_diag(x = cooksd1, cutoff = "internal", name = "cooks.distance", modify = "dotplot") + ylab("Cooks distance") + xlab("school")
+```
+
+### The Cook's distance using influence.ME library:
+
+```{r}
+library(influence.ME, quietly = F,warn.conflicts = F)
+InfPoin <- influence(modelF_lmer, "litter")
+cooks.distance(InfPoin, parameter=3, sort=TRUE)
+plot(InfPoin, which="cook", cutoff=.17, sort=TRUE, xlab="Cook's Distance", ylab="Litter")
+
+# how much each regressors would change if i case removed
+dfbetas(InfPoin) 
+
+plot(InfPoin, which="dfbetas", xlab="DFbetaS", ylab="Litter")
+
+```
+### leverage for level 1 (fixed) and in each group
+
+Leverage points (the diagonal of the hat matrix) can influence the fitted values in different way. Very large values indicate the potential outlier [1].
+
+There's a package in r, named outlier which helps to detect the outliers and remove them. There are multiple tests, including chi-square test, or the one thath as the maximum difference with mean, Dixon test, Grubbs test, cochran.test, etc. I used chisq.out.test function in outlier package on ```weight``` and found that there's no significant outliers. But I continue my analysis on residuals and the outliers after fitting the model:
+
+```{r}
+# At Observation level 
+leve1 <- leverage(modelF_lmer, level = 1)
+head(leve1)
+# At Each Group
+leve2 <- leverage(modelF_lmer, level = "litter")
+head(leve2)
+
+```
+
+###Residual plots for the final model:
+
+```{r}
+plot(fitted(modelF_lmer), residuals(modelF_lmer), xlab="Fitted Values", ylab = "Residuals")
+
+abline(h=0, lty=2)
+lines(smooth.spline(fitted(modelF_lmer), residuals(modelF_lmer)))
+
+hist(resid(modelF_lmer))
+# normality
+qqnorm(resid(modelF_lmer))
+qqline(resid(modelF_lmer))
+
+# independence check
+plot(ratpup$treatment,resid(modelF_lmer))
+plot(ratpup$sex1,resid(modelF_lmer))
+plot(ratpup$litsize,resid(modelF_lmer))
+
+# standardized residuals versus fitted values
+# looks good!
+plot(fitted(modelF_lmer),resid(modelF_lmer))
+abline(h=0,col="grey")
+lines(lowess(fitted(modelF_lmer)[is.finite(fitted(modelF_lmer))],resid(modelF_lmer)[is.finite(fitted(modelF_lmer))]),col="red")
+```
+The residual plot looks normal, there is no specific trend in it; except one that is located at the bottom of the plot. 
+
+###Result Of Outlier, Influential point analysis:
+
+Generally we don't remove outliers immediately, we mainly try to check whether removing an influential points plays a role in our fitting performance or not. 
+I found that for ```sex1```, ```litter``` $6$ th could be outlier/influential point and for ```treatment low```, ```litter``` $9$ th. But with further investigation, removing ```litter``` $6$ th would change the coefficients in ```sex1``` more than $-0.5$ (closer to $-1$). So I decided to remove this case and redo all of these processes again:
+
+```{r}
+ratpup6 = ratpup[-c(58:66), ] 
+
+model_lmer6 <- lmer(weight ~ treatment + sex1 + litsize +
+treatment:sex1 + (1 | litter),ratpup6, REML = T)
+
+# again the interaction was not significant
+
+modelF6 <- lmer(weight ~ treatment + sex1 + litsize + (1 | litter), ratpup6, REML = T)
+summary(modelF6)
+
+rand(modelF6)
+```
+
+### residual on the new dataset (after removing case 6)
+
+```{r}
+resid <- HLMresid(modelF6, level = 1, type = "LS", standardize = TRUE)
+head(resid)
+ssresid <- na.omit(resid$std.resid)
+ggplot_qqnorm(x = ssresid, line = "rlm")
+
+plot(fitted(modelF6), residuals(modelF6), xlab="Fitted Values", ylab = "Residuals")
+abline(h=0, lty=2)
+lines(smooth.spline(fitted(modelF6), residuals(modelF6)))
+
+```
+###Cook's distance:
+```{r}
+InfPoin <- influence(modelF6, "litter")
+cooks.distance(InfPoin, parameter=3, sort=TRUE)
+
+plot(InfPoin, which="cook", cutoff=.17, sort=TRUE, xlab="Cook's Distance", ylab="Litter")
+dfbetas(InfPoin)
+plot(InfPoin, which="dfbetas", xlab="DFbetaS", ylab="Litter")
+```
+
+From the residual plot and the ```DFbetaS``` plot, we can see that the fit has improved after removing $6$ th litter. Still the model is the same as before but with smaller residuals and no serious influential points.
+
+###References:
+[1] Loy, A., & Hofmann, H. (2013). Diagnostic tools for hierarchical linear models. Wiley Interdisciplinary Reviews: Computational Statistics, 5(1), 48-61.
